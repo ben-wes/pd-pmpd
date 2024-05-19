@@ -173,7 +173,7 @@ t_int *pmpd3d_tilde_perform(t_int *w)
                 LY = x->NLlink[i].mass2->posY - x->NLlink[i].mass1->posY;
                 LZ = x->NLlink[i].mass2->posZ - x->NLlink[i].mass1->posZ;
                 L = sqrt(LY*LY + LX*LX + LZ*LZ);
-                if ((L < x->NLlink[i].Lmax) && (L > x->NLlink[i].Lmin)) {
+                if (L < x->NLlink[i].Lmax && L > x->NLlink[i].Lmin) {
                     deltaL = L - x->NLlink[i].L0;
                     F = x->NLlink[i].K * pow(fabs(deltaL), x->NLlink[i].Pow);
                     F = (deltaL < 0) ? -F : F;
