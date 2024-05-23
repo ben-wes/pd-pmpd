@@ -281,10 +281,10 @@ void pmpd3d_tilde_bang(t_pmpd3d_tilde *x)
     for (i=0; i<x->nb_outPosX; i++) logpost(x, 2, "outPosX:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outPosX[i].nbr_outlet, x->outPosX[i].mass->Id, x->outPosX[i].influence);
     for (i=0; i<x->nb_outPosY; i++) logpost(x, 2, "outPosY:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outPosY[i].nbr_outlet, x->outPosY[i].mass->Id, x->outPosY[i].influence);
     for (i=0; i<x->nb_outPosZ; i++) logpost(x, 2, "outPosZ:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outPosZ[i].nbr_outlet, x->outPosZ[i].mass->Id, x->outPosZ[i].influence);
-    for (i=0; i<x->nb_outSpeed; i++) logpost(x, 2, "outSpeed:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outSpeed[i].nbr_outlet, x->outSpeed[i].mass->Id, x->outSpeed[i].influence);
     for (i=0; i<x->nb_outSpeedX; i++) logpost(x, 2, "outSpeedX:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outSpeedX[i].nbr_outlet, x->outSpeedX[i].mass->Id, x->outSpeedX[i].influence);
     for (i=0; i<x->nb_outSpeedY; i++) logpost(x, 2, "outSpeedY:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outSpeedY[i].nbr_outlet, x->outSpeedY[i].mass->Id, x->outSpeedY[i].influence);
     for (i=0; i<x->nb_outSpeedZ; i++) logpost(x, 2, "outSpeedZ:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outSpeedZ[i].nbr_outlet, x->outSpeedZ[i].mass->Id, x->outSpeedZ[i].influence);
+    for (i=0; i<x->nb_outSpeed; i++) logpost(x, 2, "outSpeed:%ld, Outlet:%ld, Mass:%ld, Amplitude:%f", i, x->outSpeed[i].nbr_outlet, x->outSpeed[i].mass->Id, x->outSpeed[i].influence);
 }
 
 inline int validate_index(t_pmpd3d_tilde *x, int idx, t_int count, const char* type)
@@ -468,12 +468,13 @@ void pmpd3d_tilde_mass(t_pmpd3d_tilde *x, t_float M, t_float posX, t_float posY,
     new_mass->Doffset = 0;
     new_mass->Id = x->nb_mass;
 
-    x->mass = (struct _mass **)resizebytes(x->mass, x->nb_mass * sizeof(struct _mass *), (x->nb_mass + 1) * sizeof(struct _mass *));
-    if (!x->mass) {
+    struct _mass **mass_resized = (struct _mass **)resizebytes(x->mass, x->nb_mass * sizeof(struct _mass *), (x->nb_mass + 1) * sizeof(struct _mass *));
+    if (!mass_resized) {
         freebytes(new_mass, sizeof(struct _mass));
         return;
     }
 
+    x->mass = mass_resized;
     x->mass[x->nb_mass] = new_mass;
     x->nb_mass++;
 }

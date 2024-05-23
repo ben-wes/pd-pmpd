@@ -331,12 +331,13 @@ void pmpd_tilde_mass(t_pmpd_tilde *x, t_float M, t_float posX)
     new_mass->forceX = 0;
     new_mass->Id = x->nb_mass;
 
-    x->mass = (struct _mass **)resizebytes(x->mass, x->nb_mass * sizeof(struct _mass *), (x->nb_mass + 1) * sizeof(struct _mass *));
-    if (!x->mass) {
+    struct _mass **mass_resized = (struct _mass **)resizebytes(x->mass, x->nb_mass * sizeof(struct _mass *), (x->nb_mass + 1) * sizeof(struct _mass *));
+    if (!mass_resized) {
         freebytes(new_mass, sizeof(struct _mass));
         return;
     }
 
+    x->mass = mass_resized;
     x->mass[x->nb_mass] = new_mass;
     x->nb_mass++;
 }
