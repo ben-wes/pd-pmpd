@@ -26,7 +26,6 @@
 #else
 #include <dlfcn.h>
 #endif
-
 #include "pmpd_export.h"
 #include "pmpd_version.h"
 
@@ -36,6 +35,7 @@
 #define NB_MAX_MASS_DEFAULT 10000
 #define NB_MAX_IN_DEFAULT    1000
 #define NB_MAX_OUT_DEFAULT   1000
+#define REF_SAMPLERATE      44100
 
 typedef void (*t_signal_setmultiout)(t_signal **, int); 
 static t_signal_setmultiout g_signal_setmultiout;
@@ -95,6 +95,7 @@ typedef struct _pmpd_tilde {
     t_int nb_inPos, nb_inForce, nb_outPos, nb_outSpeed;
     t_sample f; // used for signal inlet
     t_int nb_loop; // to be able not to compute everything a each iteration
+    t_float sr_mass_factor; // factor to compensate for different samplerates
 } t_pmpd_tilde;
 
 t_int *pmpd_tilde_perform(t_int *w)
@@ -161,10 +162,8 @@ t_int *pmpd_tilde_perform(t_int *w)
         }
 
         // compute output vector value
-        for (i=0; i<x->nb_outPos; i++)
-            x->outlet[x->outPos[i].nbr_outlet] += x->outPos[i].mass->posX * x->outPos[i].influence;
-        for (i=0; i<x->nb_outSpeed; i++)
-            x->outlet[x->outSpeed[i].nbr_outlet] += x->outSpeed[i].mass->speedX * x->outSpeed[i].influence;
+        for (i=0; i<x->nb_outPos; i++) x->outlet[x->outPos[i].nbr_outlet] += x->outPos[i].mass->posX * x->outPos[i].influence;
+        for (i=0; i<x->nb_outSpeed; i++) x->outlet[x->outSpeed[i].nbr_outlet] += x->outSpeed[i].mass->speedX * x->outSpeed[i].influence;
 
         // send vector value to the vector pointer and reset for next iteration
         for (i=0; i<x->nb_outlet; i++) {
@@ -205,7 +204,7 @@ void pmpd_tilde_dsp(t_pmpd_tilde *x, t_signal **sp)
 void pmpd_tilde_bang(t_pmpd_tilde *x)
 {
     t_int i;
-    for (i=0; i<x->nb_mass; i++)     logpost(x, 2, "mass:%ld, M:%f, pos:%f", i, x->mass[i].invM > 0 ? 1/x->mass[i].invM : 0, x->mass[i].posX);
+    for (i=0; i<x->nb_mass; i++)     logpost(x, 2, "mass:%ld, M:%f, pos:%f", i, x->mass[i].invM > 0 ? 1/x->mass[i].invM/x->sr_mass_factor : 0, x->mass[i].posX);
     for (i=0; i<x->nb_link; i++)     logpost(x, 2, "link:%ld, mass1:%ld, mass2:%ld, K:%f, D:%f", i, x->link[i].mass1->Id, x->link[i].mass2->Id, x->link[i].K, x->link[i].D);
     for (i=0; i<x->nb_NLlink; i++)   logpost(x, 2, "NLlink:%ld, mass1:%ld, mass2:%ld, K:%f, D:%f, L0:%f, Lmin:%f, Lmax:%f, Pow:%f", i, x->NLlink[i].mass1->Id, x->NLlink[i].mass2->Id, x->NLlink[i].K, x->NLlink[i].D, x->NLlink[i].L0, x->NLlink[i].Lmin, x->NLlink[i].Lmax, x->NLlink[i].Pow);
     for (i=0; i<x->nb_inPos; i++)    logpost(x, 2, "inPos:%ld, Inlet:%ld, Mass:%ld, Amplitude:%f", i, x->inPos[i].nbr_inlet, x->inPos[i].mass->Id, x->inPos[i].influence);
@@ -246,7 +245,7 @@ void pmpd_tilde_posX(t_pmpd_tilde *x, t_float idx_mass, t_float posX)
 void pmpd_tilde_setM(t_pmpd_tilde *x, t_float idx_mass, t_float M)
 {
     if (!validate_index(x, (int)idx_mass, x->nb_mass, "mass")) return;
-    x->mass[(int)idx_mass].invM = M>0 ? 1/M : 0;
+    x->mass[(int)idx_mass].invM = M>0 ? 1/M/x->sr_mass_factor : 0;
 }
 
 void pmpd_tilde_setK(t_pmpd_tilde *x, t_float idx_link, t_float K)
@@ -339,7 +338,7 @@ void pmpd_tilde_mass(t_pmpd_tilde *x, t_float M, t_float posX)
 // invM speedX posX force
 {
     if (!validate_count(x, x->nb_mass, x->nb_max_mass, "masses")) return;
-    x->mass[x->nb_mass].invM = M>0 ? 1/M : 0;
+    x->mass[x->nb_mass].invM = M>0 ? 1/M/x->sr_mass_factor : 0;
     x->mass[x->nb_mass].speedX = 0;
     x->mass[x->nb_mass].posX = posX;
     x->mass[x->nb_mass].forceX = 0;
@@ -435,6 +434,8 @@ void pmpd_tilde_outSpeed(t_pmpd_tilde *x, t_float idx_outlet, t_float idx_mass, 
 
 void pmpd_tilde_reset(t_pmpd_tilde *x)
 {
+    t_float sr = sys_getsr();
+    x->sr_mass_factor = (sr / REF_SAMPLERATE) * (sr / REF_SAMPLERATE);
     x->nb_link     = 0;
     x->nb_NLlink   = 0;
     x->nb_mass     = 0;

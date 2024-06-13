@@ -26,10 +26,8 @@
 #else
 #include <dlfcn.h>
 #endif
-
 #include "pmpd_export.h"
 #include "pmpd_version.h"
-
 
 #define max(a,b) ( ((a) > (b)) ? (a) : (b) )
 
@@ -37,6 +35,7 @@
 #define NB_MAX_MASS_DEFAULT 10000
 #define NB_MAX_IN_DEFAULT    1000
 #define NB_MAX_OUT_DEFAULT   1000
+#define REF_SAMPLERATE      44100
 
 typedef void (*t_signal_setmultiout)(t_signal **, int); 
 static t_signal_setmultiout g_signal_setmultiout;
@@ -114,6 +113,7 @@ typedef struct _pmpd3d_tilde {
     t_int nb_outPosX, nb_outPosY, nb_outPosZ, nb_outSpeedX, nb_outSpeedY, nb_outSpeedZ, nb_outSpeed;
     t_sample f; // used for signal inlet
     t_int nb_loop; // to be able not to compute everything a each iteration
+    t_float sr_mass_factor; // factor to compensate for different samplerates
 } t_pmpd3d_tilde;
 
 t_int *pmpd3d_tilde_perform(t_int *w)
@@ -275,7 +275,7 @@ void pmpd3d_tilde_dsp(t_pmpd3d_tilde *x, t_signal **sp)
 void pmpd3d_tilde_bang(t_pmpd3d_tilde *x)
 {
     t_int i;
-    for (i=0; i<x->nb_mass; i++) logpost(x, 2, "mass:%ld, M:%f, posX:%f, posY:%f, posZ:%f, DEnv:%f, DEnvOffset:%f",i, x->mass[i].invM<=0.?0:1/x->mass[i].invM, x->mass[i].posX,x->mass[i].posY,x->mass[i].posZ,x->mass[i].D,x->mass[i].Doffset);
+    for (i=0; i<x->nb_mass; i++) logpost(x, 2, "mass:%ld, M:%f, posX:%f, posY:%f, posZ:%f, DEnv:%f, DEnvOffset:%f",i, x->mass[i].invM<=0.?0:1/x->mass[i].invM/x->sr_mass_factor, x->mass[i].posX,x->mass[i].posY,x->mass[i].posZ,x->mass[i].D,x->mass[i].Doffset);
     for (i=0; i<x->nb_link; i++) logpost(x, 2, "link:%ld, mass1:%ld, mass2:%ld, K:%f, D:%f, L0:%f, L:%f", i, x->link[i].mass1->Id, x->link[i].mass2->Id, x->link[i].K, x->link[i].D, x->link[i].L0, x->link[i].L);
     for (i=0; i<x->nb_NLlink; i++) logpost(x, 2, "NLlink:%ld, mass1:%ld, mass2:%ld, K:%f, D:%f, L0:%f, L:%f, Lmin:%f, Lmax:%f, Pow:%f", i, x->NLlink[i].mass1->Id, x->NLlink[i].mass2->Id, x->NLlink[i].K, x->NLlink[i].D, x->NLlink[i].L0, x->NLlink[i].L, x->NLlink[i].Lmin, x->NLlink[i].Lmax, x->NLlink[i].Pow);
     for (i=0; i<x->nb_inPosX; i++) logpost(x, 2, "inPosX:%ld, Inlet:%ld, Mass:%ld, Amplitude:%f", i, x->inPosX[i].nbr_inlet, x->inPosX[i].mass->Id, x->inPosX[i].influence);
@@ -353,7 +353,7 @@ void pmpd3d_tilde_setDEnvOffset(t_pmpd3d_tilde *x, t_float idx_mass, t_float Dof
 void pmpd3d_tilde_setM(t_pmpd3d_tilde *x, t_float idx_mass, t_float M)
 {
     if (!validate_index(x, (int)idx_mass, x->nb_mass, "mass")) return;
-    x->mass[(int)idx_mass].invM = M>0 ? 1/M : 0;
+    x->mass[(int)idx_mass].invM = M>0 ? 1/M/x->sr_mass_factor : 0;
 }
 
 void pmpd3d_tilde_setK(t_pmpd3d_tilde *x, t_float idx_link, t_float K)
@@ -469,7 +469,7 @@ void pmpd3d_tilde_mass(t_pmpd3d_tilde *x, t_float M, t_float posX, t_float posY,
 //invM speedX posX force
 {
     if (!validate_count(x, x->nb_mass, x->nb_max_mass, "masses")) return;
-    x->mass[x->nb_mass].invM = M>0 ? 1/M : 0;
+    x->mass[x->nb_mass].invM = M>0 ? 1/M/x->sr_mass_factor : 0;
     x->mass[x->nb_mass].speedX = 0;
     x->mass[x->nb_mass].speedY = 0;
     x->mass[x->nb_mass].speedZ = 0;
@@ -685,6 +685,8 @@ void pmpd3d_tilde_outSpeed(t_pmpd3d_tilde *x, t_float idx_outlet, t_float idx_ma
 
 void pmpd3d_tilde_reset(t_pmpd3d_tilde *x)
 {
+    t_float sr = sys_getsr();
+    x->sr_mass_factor = (sr / REF_SAMPLERATE) * (sr / REF_SAMPLERATE);
     x->nb_link      = 0;
     x->nb_NLlink    = 0;
     x->nb_mass      = 0;
