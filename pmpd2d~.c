@@ -199,24 +199,28 @@ t_int *pmpd2d_tilde_perform(t_int *w)
                     x->mass[i].forceX += F * x->mass[i].speedX * invL;
                     x->mass[i].forceY += F * x->mass[i].speedY * invL;
                 }
-                x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
-                x->mass[i].speedY += x->mass[i].forceY * x->mass[i].invM;
+
+                // avoid moving static masses for undefined forces
+                if (x->mass[i].invM != 0) {
+                    x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
+                    x->mass[i].speedY += x->mass[i].forceY * x->mass[i].invM;
+                    x->mass[i].posX += x->mass[i].speedX;
+                    x->mass[i].posY += x->mass[i].speedY;
+
+                    // space limitation
+                    if ((x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX) || 
+                        (x->mass[i].posY < x->minY) || (x->mass[i].posY > x->maxY))
+                    {
+                        tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
+                        tmpY = clamp(x->mass[i].posY, x->minY, x->maxY);
+                        x->mass[i].speedX -= x->mass[i].posX - tmpX;
+                        x->mass[i].speedY -= x->mass[i].posY - tmpY;
+                        x->mass[i].posX = tmpX;
+                        x->mass[i].posY = tmpY;
+                    }
+                }
                 x->mass[i].forceX = 0;
                 x->mass[i].forceY = 0;
-              
-                x->mass[i].posX += x->mass[i].speedX;
-                x->mass[i].posY += x->mass[i].speedY;
-
-                // space limitation
-                if ( (x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX) || (x->mass[i].posY < x->minY) || (x->mass[i].posY > x->maxY) ) 
-                {
-                    tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
-                    tmpY = clamp(x->mass[i].posY, x->minY, x->maxY);
-                    x->mass[i].speedX -= x->mass[i].posX - tmpX;
-                    x->mass[i].speedY -= x->mass[i].posY - tmpY;
-                    x->mass[i].posX = tmpX;
-                    x->mass[i].posY = tmpY;
-                }
             }
         }
         

@@ -219,31 +219,35 @@ t_int *pmpd3d_tilde_perform(t_int *w)
                     x->mass[i].forceY += F * x->mass[i].speedY * invL;
                     x->mass[i].forceZ += F * x->mass[i].speedZ * invL;
                 }
-                x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
-                x->mass[i].speedY += x->mass[i].forceY * x->mass[i].invM;
-                x->mass[i].speedZ += x->mass[i].forceZ * x->mass[i].invM;
+
+                // avoid moving static masses for undefined forces
+                if (x->mass[i].invM != 0) {
+                    x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
+                    x->mass[i].speedY += x->mass[i].forceY * x->mass[i].invM;
+                    x->mass[i].speedZ += x->mass[i].forceZ * x->mass[i].invM;
+                    x->mass[i].posX += x->mass[i].speedX;
+                    x->mass[i].posY += x->mass[i].speedY;
+                    x->mass[i].posZ += x->mass[i].speedZ;
+
+                    // space limitation
+                    if ((x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX) || 
+                        (x->mass[i].posY < x->minY) || (x->mass[i].posY > x->maxY) ||
+                        (x->mass[i].posZ < x->minZ) || (x->mass[i].posZ > x->maxZ))
+                    {
+                        tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
+                        tmpY = clamp(x->mass[i].posY, x->minY, x->maxY);
+                        tmpZ = clamp(x->mass[i].posZ, x->minZ, x->maxZ);
+                        x->mass[i].speedX -= x->mass[i].posX - tmpX;
+                        x->mass[i].speedY -= x->mass[i].posY - tmpY;
+                        x->mass[i].speedZ -= x->mass[i].posZ - tmpZ;
+                        x->mass[i].posX = tmpX;
+                        x->mass[i].posY = tmpY;
+                        x->mass[i].posZ = tmpZ;
+                    }
+                }
                 x->mass[i].forceX = 0;
                 x->mass[i].forceY = 0;
                 x->mass[i].forceZ = 0;
-                x->mass[i].posX += x->mass[i].speedX;
-                x->mass[i].posY += x->mass[i].speedY;
-                x->mass[i].posZ += x->mass[i].speedZ;
-
-                // space limitation
-                if ((x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX) || 
-                    (x->mass[i].posY < x->minY) || (x->mass[i].posY > x->maxY) ||
-                    (x->mass[i].posZ < x->minZ) || (x->mass[i].posZ > x->maxZ)) 
-                {
-                    tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
-                    tmpY = clamp(x->mass[i].posY, x->minY, x->maxY);
-                    tmpZ = clamp(x->mass[i].posZ, x->minZ, x->maxZ);
-                    x->mass[i].speedX -= x->mass[i].posX - tmpX;
-                    x->mass[i].speedY -= x->mass[i].posY - tmpY;
-                    x->mass[i].speedZ -= x->mass[i].posZ - tmpZ;
-                    x->mass[i].posX = tmpX;
-                    x->mass[i].posY = tmpY;
-                    x->mass[i].posZ = tmpZ;
-                }
             }
         }
 

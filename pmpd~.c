@@ -156,19 +156,22 @@ t_int *pmpd_tilde_perform(t_int *w)
             {
             // compute new masses position
             // a mass does not move if M=0 (i.e : invM = 0)
-                x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
+                // avoid moving static masses for undefined forces
+                if (x->mass[i].invM != 0) {
+                    x->mass[i].speedX += x->mass[i].forceX * x->mass[i].invM;
+                    x->mass[i].posX += x->mass[i].speedX;
+
+                    // space limitation
+                    if ((x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX)) 
+                    {
+                        tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
+                        x->mass[i].speedX -= x->mass[i].posX - tmpX;
+                        x->mass[i].posX = tmpX;
+                    }
+                }
                 x->mass[i].forceX = 0; //random_bang_pmpd_tilde(x) * 1e-25;
                     // only used for denormal problem
                     // -ffast-math -O6 does not solve the problem
-                x->mass[i].posX += x->mass[i].speedX;
-
-                // space limitation
-                if ((x->mass[i].posX < x->minX) || (x->mass[i].posX > x->maxX)) 
-                {
-                    tmpX = clamp(x->mass[i].posX, x->minX, x->maxX);
-                    x->mass[i].speedX -= x->mass[i].posX - tmpX;
-                    x->mass[i].posX = tmpX;
-                }
             }
         }
 
